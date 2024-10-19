@@ -1,6 +1,11 @@
 import azure.functions as func
 import logging
 
+
+from shared_code.db_utils import player_container, prompts_container
+from shared_code.translator_utils import detect_language, translate_text
+
+
 app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 @app.route(route="setup_function")
