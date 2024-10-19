@@ -30,3 +30,9 @@ class CosmosDB:
         self.database = self.client.get_database_client(self.database_name)
         self.player_container = self.database.get_container_client(self.player_container_name)
         self.prompt_container = self.database.get_container_client(self.prompt_container_name)
+    
+    def get_player_container(self):
+        return self.player_container
+    
+    def get_prompt_container(self):
+        return self.prompt_container

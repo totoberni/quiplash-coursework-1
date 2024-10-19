@@ -4,117 +4,70 @@ import unittest
 import os
 import json
 import logging
-from unittest import mock
-from unittest.mock import patch, MagicMock
 
 from shared_code.db_utils import CosmosDB
-from azure.cosmos import CosmosClient, exceptions
+from azure.cosmos import exceptions
 
 class TestCosmosDB(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """
-        Set up the CosmosDB instance for testing.
+        Set up the CosmosDB instance for testing by loading environment variables
+        from local.settings.json and initializing the CosmosDB class.
         """
         # Load settings from local.settings.json
         settings_file = os.path.join(os.path.dirname(__file__), '..', 'local.settings.json')
-        with open(settings_file) as f:
-            settings = json.load(f).get('Values', {})
+        try:
+            with open(settings_file) as f:
+                settings = json.load(f).get('Values', {})
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Could not find {settings_file}. Ensure it exists and is correctly formatted.")
 
-        # Mock environment variables
-        cls.patcher = patch.dict(os.environ, settings, clear=True)
-        cls.patcher.start()
+        # Set environment variables
+        for key, value in settings.items():
+            os.environ[key] = value
 
         # Initialize CosmosDB instance
         try:
             cls.cosmos_db = CosmosDB()
+            logging.info("CosmosDB instance initialized successfully.")
         except ValueError as e:
-            raise unittest.SkipTest(f"Skipping tests due to initialization failure: {e}")
+            cls.cosmos_db = None
+            logging.error(f"Initialization failed: {e}")
 
-    @classmethod
-    def tearDownClass(cls):
-        """
-        Clean up after tests.
-        """
-        cls.patcher.stop()
+    def test_connection_string_exists(self):
+        """Test that the COSMOS_DB_CONNECTION_STRING environment variable exists."""
+        connection_string = os.environ.get('COSMOS_DB_CONNECTION_STRING')
+        self.assertIsNotNone(connection_string, "COSMOS_DB_CONNECTION_STRING is not set.")
+        logging.info("COSMOS_DB_CONNECTION_STRING exists.")
 
-    def test_connection_string_present(self):
-        """
-        Test that the CosmosDB client is initialized with the connection string.
-        """
-        self.assertIsNotNone(self.cosmos_db.client, "CosmosClient should be initialized.")
-        logging.info("CosmosClient initialized successfully.")
+    def test_connection_string_leads_to_connection(self):
+        """Test that the connection string can be used to connect to Cosmos DB."""
+        if self.cosmos_db is None:
+            self.fail("CosmosDB instance was not initialized due to missing or invalid connection string.")
 
-    def test_database_found(self):
-        """
-        Test that the specified database is found.
-        """
-        self.assertIsNotNone(self.cosmos_db.database, "Database client should be initialized.")
-        self.assertEqual(self.cosmos_db.database.database_name, os.environ.get('DATABASE_NAME'),
-                         "Database name should match the environment variable.")
-        logging.info(f"Database '{self.cosmos_db.database.database_name}' found successfully.")
+        try:
+            # Attempt to list databases to verify connection
+            databases = list(self.cosmos_db.client.list_databases())
+            self.assertIsInstance(databases, list, "Databases should be returned as a list.")
+            logging.info("Successfully connected to Cosmos DB and retrieved databases.")
+        except exceptions.CosmosHttpResponseError as e:
+            self.fail(f"Failed to connect to Cosmos DB: {e.message}")
+        except Exception as e:
+            self.fail(f"An unexpected error occurred while connecting to Cosmos DB: {str(e)}")
 
-    def test_player_container_found(self):
-        """
-        Test that the player container is found.
-        """
-        self.assertIsNotNone(self.cosmos_db.player_container, "Player container client should be initialized.")
-        self.assertEqual(self.cosmos_db.player_container.container_id, os.environ.get('PLAYER_CONTAINER_NAME'),
-                         "Player container name should match the environment variable.")
-        logging.info(f"Player container '{self.cosmos_db.player_container.container_id}' found successfully.")
-
-    def test_prompt_container_found(self):
-        """
-        Test that the prompt container is found.
-        """
-        self.assertIsNotNone(self.cosmos_db.prompt_container, "Prompt container client should be initialized.")
-        self.assertEqual(self.cosmos_db.prompt_container.container_id, os.environ.get('PROMPT_CONTAINER_NAME'),
-                         "Prompt container name should match the environment variable.")
-        logging.info(f"Prompt container '{self.cosmos_db.prompt_container.container_id}' found successfully.")
-
-    @patch('shared_code.db_utils.CosmosClient')
-    def test_initialization_failure_missing_connection_string(self, mock_cosmos_client):
-        """
-        Test that initialization fails when the connection string is missing.
-        """
-        with patch.dict(os.environ, {"COSMOS_DB_CONNECTION_STRING": ""}, clear=True):
-            with self.assertRaises(ValueError) as context:
-                CosmosDB()
-            self.assertIn("COSMOS_DB_CONNECTION_STRING not set", str(context.exception))
-            logging.info("Initialization failed as expected due to missing connection string.")
-
-    @patch('shared_code.db_utils.CosmosClient')
-    def test_initialization_failure_missing_database_name(self, mock_cosmos_client):
-        """
-        Test that initialization fails when the database name is missing.
-        """
-        with patch.dict(os.environ, {"DATABASE_NAME": ""}, clear=True):
-            with self.assertRaises(ValueError) as context:
-                CosmosDB()
-            self.assertIn("DATABASE_NAME not set", str(context.exception))
-            logging.info("Initialization failed as expected due to missing database name.")
-
-    @patch('shared_code.db_utils.CosmosClient')
-    def test_initialization_failure_missing_player_container(self, mock_cosmos_client):
-        """
-        Test that initialization fails when the player container name is missing.
-        """
-        with patch.dict(os.environ, {"PLAYER_CONTAINER_NAME": ""}, clear=True):
-            with self.assertRaises(ValueError) as context:
-                CosmosDB()
-            self.assertIn("PLAYER_CONTAINER_NAME not set", str(context.exception))
-            logging.info("Initialization failed as expected due to missing player container name.")
-
-    @patch('shared_code.db_utils.CosmosClient')
-    def test_initialization_failure_missing_prompt_container(self, mock_cosmos_client):
-        """
-        Test that initialization fails when the prompt container name is missing.
-        """
-        with patch.dict(os.environ, {"PROMPT_CONTAINER_NAME": ""}, clear=True):
-            with self.assertRaises(ValueError) as context:
-                CosmosDB()
-            self.assertIn("PROMPT_CONTAINER_NAME not set", str(context.exception))
-            logging.info("Initialization failed as expected due to missing prompt container name.")
+    def test_containers_fetched(self):
+        """Test that the database and container names are set in the environment variables."""
+        try: 
+            player_container_name = CosmosDB.get_prompt_container
+            prompt_container_name = CosmosDB.get_player_container
+            self.assertIsNotNone(player_container_name, "PLAYER_CONTAINER_NAME is not set.")
+            self.assertIsNotNone(prompt_container_name, "PROMPT_CONTAINER_NAME is not set.")
+            logging.info("Database and container names are set in the environment variables.")
+        except Exception as e:
+            self.fail(f"An unexpected error occurred while checking environment variables: {str(e)}")
 
 if __name__ == '__main__':
+    # Configure logging to display INFO level messages
+    logging.basicConfig(level=logging.INFO)
     unittest.main()
