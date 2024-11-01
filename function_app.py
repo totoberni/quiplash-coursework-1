@@ -120,3 +120,144 @@ def player_register(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
+
+@app.route(route="player/login", methods=['GET'], auth_level=func.AuthLevel.FUNCTION)
+def player_login(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Processing /player/login request')
+
+    try:
+        req_body = req.get_json()
+    except ValueError:
+        logging.error("Invalid JSON input")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Invalid JSON input"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    username = req_body.get('username')
+    password = req_body.get('password')
+
+    # Validate presence of username and password
+    if username is None or password is None:
+        logging.warning("Username or password missing in the request")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Username or password incorrect"}),
+            mimetype="application/json",
+            status_code=200
+        )
+
+    # Query the player container for the username
+    try:
+        query = "SELECT * FROM c WHERE c.username = @username"
+        parameters = [{"name": "@username", "value": username}]
+        items = list(player_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+
+        if not items:
+            logging.info(f"Username '{username}' not found")
+            return func.HttpResponse(
+                json.dumps({"result": False, "msg": "Username or password incorrect"}),
+                mimetype="application/json",
+                status_code=200
+            )
+        else:
+            player = items[0]
+            if player.get('password') == password:
+                logging.info(f"User '{username}' logged in successfully")
+                return func.HttpResponse(
+                    json.dumps({"result": True, "msg": "OK"}),
+                    mimetype="application/json",
+                    status_code=200
+                )
+            else:
+                logging.info(f"Password mismatch for user '{username}'")
+                return func.HttpResponse(
+                    json.dumps({"result": False, "msg": "Username or password incorrect"}),
+                    mimetype="application/json",
+                    status_code=200
+                )
+    except Exception as e:
+        logging.error(f"Error querying for username '{username}': {e}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "An error occurred while checking username and password"}),
+            mimetype="application/json",
+            status_code=500
+        )
+    
+
+@app.route(route="player/update", methods=['PUT'], auth_level=func.AuthLevel.FUNCTION)
+def player_update(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Processing /player/update request')
+
+    try:
+        req_body = req.get_json()
+    except ValueError:
+        logging.error("Invalid JSON input")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Invalid JSON input"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    username = req_body.get('username')
+    add_to_games_played = req_body.get('add_to_games_played')
+    add_to_score = req_body.get('add_to_score')
+
+    # Validate presence of username and increment values
+    if username is None or add_to_games_played is None or add_to_score is None:
+        logging.warning("Username or increment values missing in the request")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Invalid input data"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    # Query the player container for the username
+    try:
+        query = "SELECT * FROM c WHERE c.username = @username"
+        parameters = [{"name": "@username", "value": username}]
+        items = list(player_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+
+        if not items:
+            logging.info(f"Username '{username}' not found")
+            return func.HttpResponse(
+                json.dumps({"result": False, "msg": "Player does not exist"}),
+                mimetype="application/json",
+                status_code=200
+            )
+        else:
+            player = items[0]
+            # Update the player's games_played and total_score
+            player['games_played'] += add_to_games_played
+            player['total_score'] += add_to_score
+
+            # Ensure that games_played and total_score are >= 0
+            if player['games_played'] < 0:
+                player['games_played'] = 0
+            if player['total_score'] < 0:
+                player['total_score'] = 0
+
+            # Replace the item in the database
+            player_container.replace_item(item=player, body=player)
+
+            logging.info(f"User '{username}' updated successfully")
+            return func.HttpResponse(
+                json.dumps({"result": True, "msg": "OK"}),
+                mimetype="application/json",
+                status_code=200
+            )
+    except Exception as e:
+        logging.error(f"Error updating player '{username}': {e}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "An error occurred while updating the player"}),
+            mimetype="application/json",
+            status_code=500
+        )
