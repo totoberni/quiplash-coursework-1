@@ -6,7 +6,7 @@ from azure.core.credentials import AzureKeyCredential
 from azure.ai.translation.text import TextTranslationClient
 
 class Translator:
-    SUPPORTED_LANGUAGES = ["en", "es", "it", "sv", "ru", "id", "bg", "zh-Hans"]
+    SUPPORTED_LANGUAGES = ["en", "es", "it", "sv", "ru", "id", "bg", "zh-Hans", "hi", "ga", "pl"]
 
     def __init__(self):
         """

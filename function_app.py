@@ -261,3 +261,228 @@ def player_update(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
+    
+@app.route(route="prompt/create", methods=['POST'], auth_level=func.AuthLevel.FUNCTION)
+def prompt_create(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Processing /prompt/create request')
+
+    try:
+        req_body = req.get_json()
+    except ValueError:
+        logging.error("Invalid JSON input")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Invalid JSON input"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    text = req_body.get('text')
+    username = req_body.get('username')
+
+    # Validate presence of text and username
+    if text is None or username is None:
+        logging.warning("Text or username missing in the request")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Text or username missing"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    # Validate prompt length
+    if not (20 <= len(text) <= 100):
+        logging.warning(f"Invalid prompt length: {len(text)} characters")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Prompt less than 20 characters or more than 100 characters"}),
+            mimetype="application/json",
+            status_code=200
+        )
+
+    # Check if player exists in the player container
+    try:
+        query = "SELECT * FROM c WHERE c.username = @username"
+        parameters = [{"name": "@username", "value": username}]
+        player_items = list(player_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+
+        if not player_items:
+            logging.info(f"Player '{username}' does not exist")
+            return func.HttpResponse(
+                json.dumps({"result": False, "msg": "Player does not exist"}),
+                mimetype="application/json",
+                status_code=200
+            )
+    except Exception as e:
+        logging.error(f"Error querying for player '{username}': {e}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "An error occurred while checking player existence"}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+    # Detect the language of the input text using the Translator class
+    try:
+        detected_language, confidence = translator.detect_language(text)
+        logging.info(f"Detected language: {detected_language}, confidence: {confidence}")
+    except Exception as e:
+        logging.error(f"Error detecting language: {e}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "An error occurred during language detection"}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+    # Supported languages for the quiplash app
+    supported_languages = ["en", "ga", "es", "hi", "zh-Hans", "pl"]
+
+    # Check if detected language is supported and confidence >= 0.2
+    if detected_language not in supported_languages or confidence < 0.2:
+        logging.warning(f"Unsupported language detected: {detected_language} with confidence {confidence}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Unsupported language"}),
+            mimetype="application/json",
+            status_code=200
+        )
+
+    # Translate the text into supported languages using the Translator class
+    try:
+        translations = translator.translate_text(text, source_language=detected_language)
+        # Filter translations to include only supported languages and exclude source language
+        translations = [t for t in translations if t['language'] in supported_languages]
+        # Add the original text if not already included
+        if not any(t['language'] == detected_language for t in translations):
+            translations.insert(0, {"language": detected_language, "text": text})
+    except Exception as e:
+        logging.error(f"Error translating text: {e}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "An error occurred during translation"}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+    # Create the prompt document
+    prompt_doc = {
+        "id": str(uuid.uuid4()),  # Generating a unique UUID for the 'id' field
+        "username": username,
+        "texts": translations
+    }
+
+    # Insert the prompt into the database
+    try:
+        prompt_container.create_item(body=prompt_doc)
+        logging.info(f"Prompt created successfully with ID '{prompt_doc['id']}'")
+        # Return the prompt document as per the specification
+        return func.HttpResponse(
+            json.dumps(prompt_doc),
+            mimetype="application/json",
+            status_code=200
+        )
+    except Exception as e:
+        logging.error(f"Error inserting new prompt: {e}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "An error occurred while creating the prompt"}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+@app.route(route="prompt/suggest", methods=['POST'], auth_level=func.AuthLevel.FUNCTION)
+def prompt_suggest(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Processing /prompt/suggest request')
+
+    try:
+        req_body = req.get_json()
+    except ValueError:
+        logging.error("Invalid JSON input")
+        return func.HttpResponse(
+            json.dumps({"suggestion": "Cannot generate suggestion"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    # Get the keyword from the request
+    keyword = req_body.get('keyword')
+
+    # Validate presence of keyword
+    if not keyword:
+        logging.warning("Keyword missing in the request")
+        return func.HttpResponse(
+            json.dumps({"suggestion": "Cannot generate suggestion"}),
+            mimetype="application/json",
+            status_code=200
+        )
+
+    # Use the PromptAdvisor to generate the suggestion
+    try:
+        suggestion_dict = advisor.generate_prompt({"keyword": keyword})
+        suggestion = suggestion_dict.get('suggestion', 'Cannot generate suggestion')
+        return func.HttpResponse(
+            json.dumps({"suggestion": suggestion}),
+            mimetype="application/json",
+            status_code=200
+        )
+    except Exception as e:
+        logging.error(f"Error generating suggestion: {e}")
+        return func.HttpResponse(
+            json.dumps({"suggestion": "Cannot generate suggestion"}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+@app.route(route="prompt/delete", methods=['POST'], auth_level=func.AuthLevel.FUNCTION)
+def prompt_delete(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Processing /prompt/delete request')
+
+    try:
+        req_body = req.get_json()
+    except ValueError:
+        logging.error("Invalid JSON input")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Invalid JSON input"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    username = req_body.get('player')
+
+    # Validate presence of username
+    if not username:
+        logging.warning("Player username missing in the request")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "Player username missing"}),
+            mimetype="application/json",
+            status_code=400
+        )
+
+    # Query the prompt container for prompts authored by the player
+    try:
+        # Use the username as partition key
+        prompts = list(prompt_container.read_all_items(partition_key=username))
+
+        if not prompts:
+            logging.info(f"No prompts found for player '{username}'")
+            return func.HttpResponse(
+                json.dumps({"result": True, "msg": "0 prompts deleted"}),
+                mimetype="application/json",
+                status_code=200
+            )
+
+        # Delete each prompt
+        for prompt in prompts:
+            prompt_container.delete_item(item=prompt['id'], partition_key=username)
+
+        logging.info(f"Deleted {len(prompts)} prompts for player '{username}'")
+        return func.HttpResponse(
+            json.dumps({"result": True, "msg": f"{len(prompts)} prompts deleted"}),
+            mimetype="application/json",
+            status_code=200
+        )
+
+    except Exception as e:
+        logging.error(f"Error deleting prompts for player '{username}': {e}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "An error occurred during deletion"}),
+            mimetype="application/json",
+            status_code=500
+        )

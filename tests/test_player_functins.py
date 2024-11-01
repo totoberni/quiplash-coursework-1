@@ -661,3 +661,4 @@ class TestPlayerFunctions(unittest.TestCase):
         self.assertFalse(result['result'])
         self.assertEqual(result['msg'], 'Player does not exist')
         self._clean_up_database()
+    
