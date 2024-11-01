@@ -78,6 +78,34 @@ class TestTranslator(unittest.TestCase):
             print(f"Translation from '{source_language}' to '{target_language}': '{italian_translation['text']}'")
         except Exception as e:
             self.fail(f"Translation from Spanish to Italian failed: {str(e)}")
+    
+    def test_language_detection_italian(self):
+        """
+        Test detecting the language of an Italian sentence.
+        """
+        try:
+            text = "Questo è un messaggio di prova."
+            expected_language = "it"
+
+            # Perform language detection
+            detected_language, confidence = self.translator.detect_language(text)
+
+            # Assertions
+            self.assertEqual(
+                detected_language,
+                expected_language,
+                f"Expected language '{expected_language}' but detected '{detected_language}'."
+            )
+            self.assertGreater(
+                confidence,
+                0.5,
+                f"Confidence {confidence} is too low."
+            )
+
+            print(f"Detected language: '{detected_language}' with confidence {confidence}")
+        except Exception as e:
+            self.fail(f"Language detection failed: {str(e)}")
+
 
 if __name__ == '__main__':
     unittest.main()

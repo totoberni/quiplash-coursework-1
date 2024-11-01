@@ -5,5 +5,5 @@
 azure-functions
 azure-cosmos
 azure-ai-translation-text
-openai == 0.28.0
+openai 
 uuid

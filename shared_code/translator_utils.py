@@ -1,10 +1,9 @@
-# shared_code/translator_utils.py
-
 import os
 import logging
+import requests
+from azure.core.exceptions import HttpResponseError
 from azure.core.credentials import AzureKeyCredential
 from azure.ai.translation.text import TextTranslationClient
-from azure.ai.translation.text.models import InputTextItem
 
 class Translator:
     SUPPORTED_LANGUAGES = ["en", "es", "it", "sv", "ru", "id", "bg", "zh-Hans"]
@@ -36,7 +35,7 @@ class Translator:
             self.translator_client = TextTranslationClient(
                 endpoint=self.translator_endpoint,
                 credential=credential,
-                region=self.translator_region  # Include the region here
+                region=self.translator_region
             )
         except Exception as e:
             logging.error(f"Failed to create Translator Text client: {e}")
@@ -55,10 +54,27 @@ class Translator:
                 - float: The confidence score.
         """
         try:
-            input_text_elements = [InputTextItem(text=text)]
-            detect_result = self.translator_client.detect_language(inputs=input_text_elements)
-            language_detected = detect_result[0].primary_language
-            return language_detected.iso6391_name, language_detected.confidence
+            key = self.translator_key
+            endpoint = self.translator_endpoint + '/detect'
+
+            params = {
+                'api-version': '3.0'
+            }
+            headers = {
+                'Ocp-Apim-Subscription-Key': key,
+                'Ocp-Apim-Subscription-Region': self.translator_region,
+                'Content-Type': 'application/json'
+            }
+            body = [{
+                'text': text
+            }]
+
+            response = requests.post(endpoint, params=params, headers=headers, json=body)
+            response.raise_for_status()
+            result = response.json()
+            detected_language = result[0]['language']
+            score = result[0]['score']
+            return detected_language, score
         except Exception as e:
             logging.error(f"Language detection failed: {e}")
             raise e
