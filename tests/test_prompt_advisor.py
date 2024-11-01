@@ -14,10 +14,6 @@ class TestPromptAdvisor(unittest.TestCase):
         """
         Set up environment variables and initialize the PromptAdvisor once for all tests.
         """
-        # Ensure that the necessary environment variables are set for testing
-        os.environ.setdefault('OAI_KEY', 'your_openai_api_key')  # Replace with a valid key for actual testing
-        os.environ.setdefault('OAI_ENDPOINT', 'https://your-azure-openai-endpoint/')  # Replace with a valid endpoint
-
         # Initialize the PromptAdvisor instance
         try:
             cls.advisor = PromptAdvisor()
@@ -25,17 +21,6 @@ class TestPromptAdvisor(unittest.TestCase):
         except Exception as e:
             print(f"Test Setup Failed: {e}")
             cls.advisor = None
-
-    def test_proper_instantiation(self):
-        """
-        Test that the PromptAdvisor class instantiates properly without errors.
-        """
-        print("Running test_proper_instantiation...")
-        try:
-            advisor = PromptAdvisor()
-            print("Result: Proper instantiation - SUCCESS\n")
-        except Exception as e:
-            print(f"Result: Proper instantiation - FAILED with exception: {e}\n")
 
     def test_correct_keyword(self):
         """
@@ -46,6 +31,32 @@ class TestPromptAdvisor(unittest.TestCase):
         result = self.advisor.generate_prompt(input_data)
         print(f"Input: {input_data}")
         print(f"Output: {result}\n")
+        #Assertions to check the output format and content
+        # self.assertIsInstance(result, dict, "Output is not a dictionary.")
+        # self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
+        # self.assertNotEqual(result['suggestion'], "Cannot generate suggestion", "Unexpected failure to generate suggestion.")
+        # self.assertIn(input_data['keyword'].lower(), result['suggestion'].lower(), "Keyword not found in suggestion.")
+        # self.assertGreaterEqual(len(result['suggestion']), 20, "Suggestion is shorter than 20 characters.")
+        # self.assertLessEqual(len(result['suggestion']), 100, "Suggestion is longer than 100 characters.")
+    
+    def test_correct_keywords(self):
+        """
+        Test generating prompts with multiple correct keywords.
+        """
+        print("Running test_correct_keywords...")
+        valid_keywords = ["innovation", "technology", "constipation", "happiness", "education"]
+        for keyword in valid_keywords:
+            input_data = {"keyword": f"{keyword}"}
+            result = self.advisor.generate_prompt(input_data)
+            print(f"Input: {input_data}")
+            print(f"Output: {result}\n")
+            #Assertions to check the output format and content
+            self.assertIsInstance(result, dict, "Output is not a dictionary.")
+            self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
+            self.assertNotEqual(result['suggestion'], "Cannot generate suggestion", "Unexpected failure to generate suggestion.")
+            self.assertIn(input_data['keyword'].lower(), result['suggestion'].lower(), "Keyword not found in suggestion.")
+            self.assertGreaterEqual(len(result['suggestion']), 20, "Suggestion is shorter than 20 characters.")
+            self.assertLessEqual(len(result['suggestion']), 100, "Suggestion is longer than 100 characters.")
 
     def test_too_short_keyword(self):
         """
@@ -57,25 +68,91 @@ class TestPromptAdvisor(unittest.TestCase):
         print(f"Input: {input_data}")
         print(f"Output: {result}\n")
 
-    def test_too_long_keyword(self):
+        # Assertions to check the output format and expected failure
+        self.assertIsInstance(result, dict, "Output is not a dictionary.")
+        self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
+        self.assertEqual(result['suggestion'], "Cannot generate suggestion", "Expected 'Cannot generate suggestion' for too short keyword.")
+
+    def test_gibberish_keyword(self):
         """
-        Test generating a prompt with a too long keyword.
+        Test generating a prompt with a gibberish keyword that likely has no detected language.
         """
-        print("Running test_too_long_keyword...")
-        input_data = {"keyword": "a" * 101}  # Assuming 101 characters is too long
+        print("Running test_gibberish_keyword...")
+        input_data = {"keyword": "asdlkjasdklj7559"}  # Gibberish string
         result = self.advisor.generate_prompt(input_data)
         print(f"Input: {input_data}")
         print(f"Output: {result}\n")
 
-    def test_gibberish_keyword(self):
+        # Assertions to check the output format and expected failure
+        self.assertIsInstance(result, dict, "Output is not a dictionary.")
+        self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
+        self.assertEqual(result['suggestion'], "Cannot generate suggestion", "Expected 'Cannot generate suggestion' for gibberish keyword.")
+
+    def test_low_confidence_language_detection(self):
         """
-        Test generating a prompt with gibberish keyword that likely has no detected language.
+        Test generating a prompt with a keyword that results in low confidence language detection.
         """
-        print("Running test_gibberish_keyword...")
-        input_data = {"keyword": "asdlkjasdklj"}  # Gibberish string
+        print("Running test_low_confidence_language_detection...")
+        input_data = {"keyword": "qwertyuiop"}  # A string that might cause low confidence
         result = self.advisor.generate_prompt(input_data)
         print(f"Input: {input_data}")
         print(f"Output: {result}\n")
+
+        # Assertions to check the output format and expected failure due to low confidence
+        self.assertIsInstance(result, dict, "Output is not a dictionary.")
+        self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
+        self.assertEqual(result['suggestion'], "Cannot generate suggestion", "Expected 'Cannot generate suggestion' due to low confidence language detection.")
+
+    def test_keyword_not_in_suggestion(self):
+        """
+        Test that if the generated prompt does not include the keyword, it returns 'Cannot generate suggestion'.
+        """
+        print("Running test_keyword_not_in_suggestion...")
+        input_data = {"keyword": "uniquekeywordthatdoesnotappear"}
+        # Assuming that the LLM may fail to include such a unique keyword
+        result = self.advisor.generate_prompt(input_data)
+        print(f"Input: {input_data}")
+        print(f"Output: {result}\n")
+
+        # Assertions to check that the method handles the absence of keyword appropriately
+        self.assertIsInstance(result, dict, "Output is not a dictionary.")
+        self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
+        # Depending on implementation, it may retry or return 'Cannot generate suggestion'
+        self.assertEqual(result['suggestion'], "Cannot generate suggestion", "Expected 'Cannot generate suggestion' when keyword is not included in prompt.")
+
+    def test_invalid_input(self):
+        """
+        Test passing invalid input to the generate_prompt method.
+        """
+        print("Running test_invalid_input...")
+        input_data = {"wrongkey": "somevalue"}
+        result = self.advisor.generate_prompt(input_data)
+        print(f"Input: {input_data}")
+        print(f"Output: {result}\n")
+
+        # Assertions to verify handling of invalid input
+        self.assertIsInstance(result, dict, "Output is not a dictionary.")
+        self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
+        self.assertEqual(result['suggestion'], "Cannot generate suggestion", "Expected 'Cannot generate suggestion' for invalid input.")
+    
+    def test_invalid_character_keyword(self):
+        """
+        Test generating a prompt with an invalid character (emoji) as keyword.
+        """
+        print("Running test_invalid_character_keyword...")
+        input_data = {"keyword": "😀"}  # Emoji as keyword
+        result = self.advisor.generate_prompt(input_data)
+        print(f"Input: {input_data}")
+        print(f"Output: {result}\n")
+
+        # Assertions to check the output format and expected failure
+        self.assertIsInstance(result, dict, "Output is not a dictionary.")
+        self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
+        self.assertEqual(
+            result['suggestion'],
+            "Cannot generate suggestion",
+            "Expected 'Cannot generate suggestion' for keyword with invalid character."
+        )
 
 if __name__ == '__main__':
     unittest.main(verbosity=2)
