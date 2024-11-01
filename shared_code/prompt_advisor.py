@@ -23,7 +23,7 @@ class PromptAdvisor:
         self.api_key = os.environ.get('OAI_KEY')
         self.api_base = os.environ.get('OAI_ENDPOINT')
         self.api_version = "2024-02-01"
-        self.model_name = "gpt-35-turbo-ab3u21"  # Must match deployed model name
+        self.model_name = "gpt-35-turbo"  # Must match deployed model name
 
         if not self.api_key or not self.api_base:
             logging.error("OpenAI API credentials are not set in environment variables.")
