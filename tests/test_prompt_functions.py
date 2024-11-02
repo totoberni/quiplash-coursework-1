@@ -340,7 +340,7 @@ class TestPromptFunctions(unittest.TestCase):
         # Prompts
         prompts = [
             {
-                "id": "auto-gen-1",
+                "id": str(uuid.uuid4()),
                 "username": "py_luis",
                 "texts": [
                     {"text": "The most useless Python one-line program", "language": "en"},
@@ -348,7 +348,7 @@ class TestPromptFunctions(unittest.TestCase):
                 ]
             },
             {
-                "id": "auto-gen-2",
+                "id": str(uuid.uuid4()),
                 "username": "py_luis",
                 "texts": [
                     {"text": "Why the millenial crossed the avenue?", "language": "en"},
@@ -356,7 +356,7 @@ class TestPromptFunctions(unittest.TestCase):
                 ]
             },
             {
-                "id": "auto-gen-3",
+                "id": str(uuid.uuid4()),
                 "username": "js_packer",
                 "texts": [
                     {"text": "Why the ka-boomer crossed the road?", "language": "en"},
@@ -364,7 +364,7 @@ class TestPromptFunctions(unittest.TestCase):
                 ]
             },
             {
-                "id": "auto-gen-4",
+                "id": str(uuid.uuid4()),
                 "username": "les_cobol",
                 "texts": [
                     {"text": "Why the boomer crossed the road?", "language": "en"},
@@ -373,7 +373,11 @@ class TestPromptFunctions(unittest.TestCase):
             }
         ]
         for prompt in prompts:
-            self.prompt_container.create_item(prompt)
+            re = self.prompt_container.create_item(prompt)
+            response = re  # 're' is already a dict
+            print('-------------------------------------TEST-------------------------------------')
+            print(json.dumps(response, indent=2))  # Pretty-print the JSON response
+
 
         # Prepare the request
         req = HttpRequest(
@@ -385,9 +389,11 @@ class TestPromptFunctions(unittest.TestCase):
 
         # Call the function
         resp = prompt_delete(req)
+        print('-------------------------------------TEST-------------------------------------')
+        print(resp.get_body())
 
         # Verify the response
-        # Test fails here
+        #Test fails here
         self.assertEqual(resp.status_code, 200)
         result = json.loads(resp.get_body())
         self.assertTrue(result['result'])

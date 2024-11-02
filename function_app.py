@@ -9,11 +9,12 @@ import uuid
 from shared_code.db_utils import CosmosDB
 from shared_code.prompt_advisor import PromptAdvisor
 from shared_code.translator_utils import Translator
-
+from shared_code.podium_utils import PodiumUtils
 # Initialize CosmosDB instance
 cosmos_db = CosmosDB()
 player_container = cosmos_db.get_player_container()
 prompt_container = cosmos_db.get_prompt_container()
+
 
 advisor = PromptAdvisor()
 translator = Translator()
@@ -335,10 +336,10 @@ def prompt_create(req: func.HttpRequest) -> func.HttpResponse:
         )
 
     # Supported languages for the quiplash app
-    supported_languages = ["en", "ga", "es", "hi", "zh-Hans", "pl"]
+    supported_languages = translator.SUPPORTED_LANGUAGES
 
     # Check if detected language is supported and confidence >= 0.2
-    if detected_language not in supported_languages or confidence < 0.2:
+    if detected_language not in supported_languages or confidence < 0.7:
         logging.warning(f"Unsupported language detected: {detected_language} with confidence {confidence}")
         return func.HttpResponse(
             json.dumps({"result": False, "msg": "Unsupported language"}),
@@ -372,7 +373,7 @@ def prompt_create(req: func.HttpRequest) -> func.HttpResponse:
     # Insert the prompt into the database
     try:
         prompt_container.create_item(body=prompt_doc)
-        logging.info(f"Prompt created successfully with ID '{prompt_doc['id']}'")
+        logging.info(f"Prompt created successfully with ID '{prompt_doc['id']}'") # turn to logging later
         # Return the prompt document as per the specification
         return func.HttpResponse(
             json.dumps(prompt_doc),
@@ -458,7 +459,10 @@ def prompt_delete(req: func.HttpRequest) -> func.HttpResponse:
     # Query the prompt container for prompts authored by the player
     try:
         # Use the username as partition key
-        prompts = list(prompt_container.read_all_items(partition_key=username))
+        prompts = list(prompt_container.query_items(
+            query="SELECT * FROM c",
+            partition_key=username
+        ))
 
         if not prompts:
             logging.info(f"No prompts found for player '{username}'")
@@ -483,6 +487,26 @@ def prompt_delete(req: func.HttpRequest) -> func.HttpResponse:
         logging.error(f"Error deleting prompts for player '{username}': {e}")
         return func.HttpResponse(
             json.dumps({"result": False, "msg": "An error occurred during deletion"}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+@app.route(route="utils/podium", methods=['GET'], auth_level=func.AuthLevel.FUNCTION)
+def utils_podium(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Processing /utils/podium request')
+    podium_utils = PodiumUtils(player_container)
+
+    try:
+        podium = podium_utils.get_podium()
+        return func.HttpResponse(
+            json.dumps(podium),
+            mimetype="application/json",
+            status_code=200
+        )
+    except Exception as e:
+        logging.error(f"Error generating podium: {e}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "An error occurred while generating the podium"}),
             mimetype="application/json",
             status_code=500
         )
