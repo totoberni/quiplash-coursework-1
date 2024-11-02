@@ -10,16 +10,21 @@ from shared_code.db_utils import CosmosDB
 from shared_code.prompt_advisor import PromptAdvisor
 from shared_code.translator_utils import Translator
 from shared_code.podium_utils import PodiumUtils
+from shared_code.get_prompts_utils import GetPrompts 
+
 # Initialize CosmosDB instance
 cosmos_db = CosmosDB()
 player_container = cosmos_db.get_player_container()
 prompt_container = cosmos_db.get_prompt_container()
 
-
+# Initialize shared classes with helper code
 advisor = PromptAdvisor()
 translator = Translator()
+podium_utils = PodiumUtils(player_container)
+prompts_utils = GetPrompts(prompt_container)
 app = func.FunctionApp()
 
+# Player_Register
 @app.route(route="player/register", methods=['POST'], auth_level=func.AuthLevel.FUNCTION)
 def player_register(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing /player/register request')
@@ -121,7 +126,8 @@ def player_register(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
-
+    
+# Player_Login
 @app.route(route="player/login", methods=['GET'], auth_level=func.AuthLevel.FUNCTION)
 def player_login(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing /player/login request')
@@ -189,7 +195,7 @@ def player_login(req: func.HttpRequest) -> func.HttpResponse:
             status_code=500
         )
     
-
+# Player_Update
 @app.route(route="player/update", methods=['PUT'], auth_level=func.AuthLevel.FUNCTION)
 def player_update(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing /player/update request')
@@ -262,7 +268,8 @@ def player_update(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
-    
+
+# Prompt_Create
 @app.route(route="prompt/create", methods=['POST'], auth_level=func.AuthLevel.FUNCTION)
 def prompt_create(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing /prompt/create request')
@@ -388,6 +395,7 @@ def prompt_create(req: func.HttpRequest) -> func.HttpResponse:
             status_code=500
         )
 
+# Prompt_Suggest
 @app.route(route="prompt/suggest", methods=['POST'], auth_level=func.AuthLevel.FUNCTION)
 def prompt_suggest(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing /prompt/suggest request')
@@ -491,10 +499,10 @@ def prompt_delete(req: func.HttpRequest) -> func.HttpResponse:
             status_code=500
         )
 
+# Podium
 @app.route(route="utils/podium", methods=['GET'], auth_level=func.AuthLevel.FUNCTION)
 def utils_podium(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing /utils/podium request')
-    podium_utils = PodiumUtils(player_container)
 
     try:
         podium = podium_utils.get_podium()
@@ -507,6 +515,48 @@ def utils_podium(req: func.HttpRequest) -> func.HttpResponse:
         logging.error(f"Error generating podium: {e}")
         return func.HttpResponse(
             json.dumps({"result": False, "msg": "An error occurred while generating the podium"}),
+            mimetype="application/json",
+            status_code=500
+        )
+
+# Get
+@app.route(route="utils/get", methods=['GET'], auth_level=func.AuthLevel.FUNCTION)
+def utils_get(req: func.HttpRequest) -> func.HttpResponse:
+    logging.info('Processing /utils/get request')
+
+    try:
+        req_body = req.get_json()
+    except ValueError:
+        logging.error("Invalid JSON input")
+        return func.HttpResponse(
+            json.dumps([]),  # Return empty list on invalid input
+            mimetype="application/json",
+            status_code=400
+        )
+
+    players = req_body.get('players', [])
+    language = req_body.get('language')
+
+    # Validate presence of 'language'
+    if not language:
+        logging.warning("Language code missing in the request")
+        return func.HttpResponse(
+            json.dumps([]),  # Return empty list if language is missing
+            mimetype="application/json",
+            status_code=200
+        )
+
+    try:
+        prompts = prompts_utils.retrieve_prompts(players, language)
+        return func.HttpResponse(
+            json.dumps(prompts),
+            mimetype="application/json",
+            status_code=200
+        )
+    except Exception as e:
+        logging.error(f"Error retrieving prompts: {e}")
+        return func.HttpResponse(
+            json.dumps([]),  # Return empty list on error
             mimetype="application/json",
             status_code=500
         )

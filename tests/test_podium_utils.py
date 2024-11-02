@@ -112,22 +112,22 @@ class TestPodiumUtils(unittest.TestCase):
         # Verify the response
         self.assertEqual(resp.status_code, 200)
         result = json.loads(resp.get_body())
-        print('-----------------------------------------TEST------------------------------',result)
 
         expected_podium = {
             "gold": [
-                {"username": "Player1", "games_played": 5, "total_score": 50}
+                {"username": "Player1", "games_played": 5, "total_score": 50},
+                {"username": "Player2", "games_played": 10, "total_score": 100},
+                {"username": "Player3", "games_played": 15, "total_score": 150}
             ],
             "silver": [
-                {"username": "Player2", "games_played": 10, "total_score": 100}
+                {"username": "Player4", "games_played": 20, "total_score": 80}
             ],
             "bronze": [
-                {"username": "Player3", "games_played": 15, "total_score": 150}
+                {"username": "Z-player", "games_played": 10, "total_score": 10}
             ]
         }
-        print('-----------------------------------------TEST------------------------------',expected_podium)
 
-        # self.assertEqual(result, expected_podium)
+        self.assertEqual(result, expected_podium)
 
     def test_podium_full_tiebreak(self):
         """
@@ -167,8 +167,8 @@ class TestPodiumUtils(unittest.TestCase):
             ],
             "silver": [
                 {"username": "A-player", "games_played": 10, "total_score": 40},
-                {"username": "B-player", "games_played": 20, "total_score": 80},
-                {"username": "C-player", "games_played": 10, "total_score": 40}
+                {"username": "C-player", "games_played": 10, "total_score": 40},
+                {"username": "B-player", "games_played": 20, "total_score": 80}
             ],
             "bronze": [
                 {"username": "X-player", "games_played": 50, "total_score": 100}
@@ -184,9 +184,9 @@ class TestPodiumUtils(unittest.TestCase):
         # Set up initial data
         players = [
             {"id": str(uuid.uuid4()), "username": "Player1", "games_played": 0, "total_score": 0},
-            {"id": str(uuid.uuid4()), "username": "Player2", "games_played": 10, "total_score": 80},
-            {"id": str(uuid.uuid4()), "username": "Player3", "games_played": 10, "total_score": 60},
-            {"id": str(uuid.uuid4()), "username": "Player4", "games_played": 20, "total_score": 100},
+            {"id": str(uuid.uuid4()), "username": "Player2", "games_played": 10, "total_score": 80},# ppgr = 8
+            {"id": str(uuid.uuid4()), "username": "Player3", "games_played": 10, "total_score": 60},# ppgr = 6
+            {"id": str(uuid.uuid4()), "username": "Player4", "games_played": 20, "total_score": 100},# ppgr = 5
             {"id": str(uuid.uuid4()), "username": "Z-player", "games_played": 10, "total_score": 10},
         ]
         for player in players:
@@ -209,18 +209,65 @@ class TestPodiumUtils(unittest.TestCase):
 
         expected_podium = {
             "gold": [
-                {"username": "Player4", "games_played": 20, "total_score": 100}
-            ],
-            "silver": [
                 {"username": "Player2", "games_played": 10, "total_score": 80}
             ],
-            "bronze": [
+            "silver": [
                 {"username": "Player3", "games_played": 10, "total_score": 60}
+            ],
+            "bronze": [
+                {"username": "Player4", "games_played": 20, "total_score": 100}
             ]
             # Player1 with zero games played would have ppgr = 0 and may appear depending on implementation
         }
 
         self.assertEqual(result, expected_podium)
+
+    def test_podium_many_zero_games_played(self):
+        """
+        Test podium computation including a player with zero games played.
+        """
+        # Set up initial data
+        players = [
+            {"id": str(uuid.uuid4()), "username": "Player1", "games_played": 1, "total_score": 10},
+            {"id": str(uuid.uuid4()), "username": "Player2", "games_played": 0, "total_score": 0},# ppgr = 8
+            {"id": str(uuid.uuid4()), "username": "Player3", "games_played": 0, "total_score": 0},# ppgr = 6
+            {"id": str(uuid.uuid4()), "username": "Player4", "games_played": 0, "total_score": 0},# ppgr = 5
+            {"id": str(uuid.uuid4()), "username": "Z-player", "games_played": 0, "total_score": 0},
+        ]
+        for player in players:
+            self.player_container.create_item(player)
+
+        # Prepare the request
+        req = HttpRequest(
+            method='GET',
+            url='/api/utils/podium',
+            body=None,
+            headers={'Content-Type': 'application/json'}
+        )
+
+        # Call the function
+        resp = utils_podium(req)
+
+        # Verify the response
+        self.assertEqual(resp.status_code, 200)
+        result = json.loads(resp.get_body())
+
+        expected_podium = {
+            "gold": [
+                {"username": "Player1", "games_played": 1, "total_score": 10}
+            ],
+            "silver": [
+                {"username": "Player2", "games_played": 0, "total_score": 0},
+                {"username": "Player3", "games_played": 0, "total_score": 0},
+                {"username": "Player4", "games_played": 0, "total_score": 0},
+                {"username": "Z-player", "games_played": 0, "total_score": 0}
+            ]
+            # Player1 with zero games played would have ppgr = 0 and may appear depending on implementation
+        }
+
+        self.assertEqual(result, expected_podium)
+        print('----------------------------------TEST----------------------------------')
+        print(result)
 
     def test_podium_with_multiple_ties(self):
         """
