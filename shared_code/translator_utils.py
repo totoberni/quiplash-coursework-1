@@ -14,9 +14,9 @@ class Translator:
         Retrieves necessary environment variables and handles any missing configurations.
         """
         # Retrieve environment variables
-        self.translator_key = os.environ.get('TRANSLATOR_TEXT_SUBSCRIPTION_KEY')
-        self.translator_endpoint = os.environ.get('TRANSLATOR_TEXT_ENDPOINT')
-        self.translator_region = os.environ.get('TRANSLATOR_TEXT_REGION')
+        self.translator_key = os.environ.get('TranslationKey')
+        self.translator_endpoint = os.environ.get('TranslationEndpoint')
+        self.translator_region = os.environ.get('TranslationRegion')
     
         # Validate environment variables
         if not self.translator_endpoint:

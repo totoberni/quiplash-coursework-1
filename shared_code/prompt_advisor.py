@@ -7,9 +7,9 @@ from shared_code.translator_utils import Translator
 
 class PromptAdvisor:
     # Class-level constants for easy configuration and to avoid magic numbers
-    MIN_KEYWORD_LENGTH = 2
-    MAX_KEYWORD_LENGTH = 100
+    MIN_KEYWORD_LENGTH = 5
     MIN_PROMPT_LENGTH = 20
+    MAX_KEYWORD_LENGTH = 100 
     MAX_PROMPT_LENGTH = 100
     LANGUAGE_CONFIDENCE_THRESHOLD = 0.8
     MAX_ATTEMPTS = 3
@@ -20,10 +20,10 @@ class PromptAdvisor:
         Initializes the PromptAdvisor by setting up the Azure OpenAI client and the Translator.
         """
         # Retrieve OpenAI credentials from environment variables
-        self.api_key = os.environ.get('OAI_KEY')
-        self.api_base = os.environ.get('OAI_ENDPOINT')
+        self.api_key = os.environ.get('OAIKey')
+        self.api_base = os.environ.get('OAIEndpoint')
         self.api_version = "2024-02-01"
-        self.model_name = "gpt-35-turbo"  # Must match deployed model name
+        self.model_name = os.environ.get('gpt-35-turbo')  # Must match deployed model name
 
         if not self.api_key or not self.api_base:
             logging.error("OpenAI API credentials are not set in environment variables.")

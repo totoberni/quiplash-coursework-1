@@ -5,15 +5,15 @@ from azure.cosmos import CosmosClient
 class CosmosDB:
     def __init__(self):
         # Initialize Cosmos DB client
-        cosmos_connection_string = os.environ.get('COSMOS_DB_CONNECTION_STRING')
+        cosmos_connection_string = os.environ.get('AzureCosmosDBConnectionString')
         if not cosmos_connection_string:
-            logging.error("COSMOS_DB_CONNECTION_STRING not set in environment variables")
-            raise ValueError("COSMOS_DB_CONNECTION_STRING not set in environment variables")
+            logging.error("AzureCosmosDBConnectionString not set in environment variables")
+            raise ValueError("AzureCosmosDBConnectionString not set in environment variables")
 
         self.client = CosmosClient.from_connection_string(cosmos_connection_string)
-        self.database_name = os.environ.get('DATABASE_NAME')
-        self.player_container_name = os.environ.get('PLAYER_CONTAINER_NAME')
-        self.prompt_container_name = os.environ.get('PROMPT_CONTAINER_NAME')
+        self.database_name = os.environ.get('DatabaseName')
+        self.player_container_name = os.environ.get('PlayerContainerName')
+        self.prompt_container_name = os.environ.get('PromptContainerName')
 
         if not self.database_name:
             logging.error("DATABASE_NAME not set in environment variables")

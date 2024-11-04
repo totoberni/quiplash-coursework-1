@@ -37,9 +37,9 @@ class TestCosmosDB(unittest.TestCase):
 
     def test_connection_string_exists(self):
         """Test that the COSMOS_DB_CONNECTION_STRING environment variable exists."""
-        connection_string = os.environ.get('COSMOS_DB_CONNECTION_STRING')
-        self.assertIsNotNone(connection_string, "COSMOS_DB_CONNECTION_STRING is not set.")
-        logging.info("COSMOS_DB_CONNECTION_STRING exists.")
+        connection_string = os.environ.get('AzureCosmosDBConnectionString')
+        self.assertIsNotNone(connection_string, "AzureCosmosDBConnectionString is not set.")
+        logging.info("AzureCosmosDBConnectionString exists.")
 
     def test_connection_string_leads_to_connection(self):
         """Test that the connection string can be used to connect to Cosmos DB."""
@@ -61,8 +61,8 @@ class TestCosmosDB(unittest.TestCase):
         try: 
             player_container_name = CosmosDB.get_prompt_container
             prompt_container_name = CosmosDB.get_player_container
-            self.assertIsNotNone(player_container_name, "PLAYER_CONTAINER_NAME is not set.")
-            self.assertIsNotNone(prompt_container_name, "PROMPT_CONTAINER_NAME is not set.")
+            self.assertIsNotNone(player_container_name, "PlayerContainerName is not set.")
+            self.assertIsNotNone(prompt_container_name, "PromptContainerName is not set.")
             logging.info("Database and container names are set in the environment variables.")
         except Exception as e:
             self.fail(f"An unexpected error occurred while checking environment variables: {str(e)}")
