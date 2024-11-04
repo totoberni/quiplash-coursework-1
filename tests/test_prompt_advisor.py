@@ -2,6 +2,16 @@
 import os
 import unittest
 import logging
+import json
+
+# Set environment variables before importing function_app
+settings_file = os.path.join(os.path.dirname(__file__), '..', 'local.settings.json')
+with open(settings_file) as f:
+    settings = json.load(f).get('Values', {})
+# Set environment variables
+for key, value in settings.items():
+    os.environ[key] = value
+
 from shared_code.prompt_advisor import PromptAdvisor
 from shared_code.translator_utils import Translator
 
@@ -32,12 +42,12 @@ class TestPromptAdvisor(unittest.TestCase):
         print(f"Input: {input_data}")
         print(f"Output: {result}\n")
         #Assertions to check the output format and content
-        # self.assertIsInstance(result, dict, "Output is not a dictionary.")
-        # self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
-        # self.assertNotEqual(result['suggestion'], "Cannot generate suggestion", "Unexpected failure to generate suggestion.")
-        # self.assertIn(input_data['keyword'].lower(), result['suggestion'].lower(), "Keyword not found in suggestion.")
-        # self.assertGreaterEqual(len(result['suggestion']), 20, "Suggestion is shorter than 20 characters.")
-        # self.assertLessEqual(len(result['suggestion']), 100, "Suggestion is longer than 100 characters.")
+        self.assertIsInstance(result, dict, "Output is not a dictionary.")
+        self.assertIn('suggestion', result, "Key 'suggestion' not found in output.")
+        self.assertNotEqual(result['suggestion'], "Cannot generate suggestion", "Unexpected failure to generate suggestion.")
+        self.assertIn(input_data['keyword'].lower(), result['suggestion'].lower(), "Keyword not found in suggestion.")
+        self.assertGreaterEqual(len(result['suggestion']), 20, "Suggestion is shorter than 20 characters.")
+        self.assertLessEqual(len(result['suggestion']), 100, "Suggestion is longer than 100 characters.")
     
     def test_correct_keywords(self):
         """
