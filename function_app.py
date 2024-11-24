@@ -128,7 +128,7 @@ def player_register(req: func.HttpRequest) -> func.HttpResponse:
         )
     
 # Player_Login
-@app.route(route="player/login", methods=['GET'], auth_level=func.AuthLevel.FUNCTION)
+@app.route(route="player/login", methods=['GET', 'POST'], auth_level=func.AuthLevel.FUNCTION)
 def player_login(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing /player/login request')
 
