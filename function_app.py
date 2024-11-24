@@ -329,6 +329,34 @@ def prompt_create(req: func.HttpRequest) -> func.HttpResponse:
             mimetype="application/json",
             status_code=500
         )
+    
+    # Check if the prompt already exists 
+    try:
+        query = "SELECT * FROM c WHERE c.username = @username AND ARRAY_CONTAINS(c.texts, {'text': @text})"
+        parameters = [
+            {"name": "@username", "value": username},
+            {"name": "@text", "value": text}
+        ]
+        prompt_items = list(prompt_container.query_items(
+            query=query,
+            parameters=parameters,
+            enable_cross_partition_query=True
+        ))
+
+        if prompt_items:
+            logging.info(f"Prompt already exists for player '{username}'")
+            return func.HttpResponse(
+                json.dumps({"result": False, "msg": "Prompt already exists"}),
+                mimetype="application/json",
+                status_code=200
+            )
+    except Exception as e:
+        logging.error(f"Error querying for existing prompt: {e}")
+        return func.HttpResponse(
+            json.dumps({"result": False, "msg": "An error occurred while checking prompt existence"}),
+            mimetype="application/json",
+            status_code=500
+        )
 
     # Detect the language of the input text using the Translator class
     try:
