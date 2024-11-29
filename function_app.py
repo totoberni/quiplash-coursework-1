@@ -548,7 +548,7 @@ def utils_podium(req: func.HttpRequest) -> func.HttpResponse:
         )
 
 # Get
-@app.route(route="utils/get", methods=['GET'], auth_level=func.AuthLevel.FUNCTION)
+@app.route(route="utils/get", methods=['GET', 'POST'], auth_level=func.AuthLevel.FUNCTION)
 def utils_get(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Processing /utils/get request')
 
